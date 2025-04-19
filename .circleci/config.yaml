@@ -1,0 +1,47 @@
+version: 2.1
+
+jobs:
+  # Lint Dockerfile untuk frontend
+  lint-dockerfile:
+    docker:
+      - image: alpine
+    steps:
+      - checkout
+      - run:
+          name: Install hadolint
+          command: |
+            apk add --no-cache curl
+            curl -L https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+            chmod +x /usr/local/bin/hadolint
+      - run:
+          name: Run hadolint on Dockerfile
+          command: hadolint Dockerfile
+
+  # Build dan push Docker image frontend ke GHCR
+  build-app-karsajobs-ui:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build frontend Docker image
+          command: |
+            docker build -t ghcr.io/${GHCR_USERNAME}/karsajobs-ui:latest .
+      - run:
+          name: Login to GHCR
+          command: |
+            echo $GHCR_TOKEN | docker login ghcr.io -u $GHCR_USERNAME --password-stdin
+      - run:
+          name: Push frontend image to GHCR
+          command: |
+            docker push ghcr.io/${GHCR_USERNAME}/karsajobs-ui:latest
+
+workflows:
+  version: 2
+  karsajobs_ui_pipeline:
+    jobs:
+      - lint-dockerfile
+      - build-app-karsajobs-ui:
+          requires:
+            - lint-dockerfile
