@@ -6,7 +6,7 @@ jobs:
     docker:
       - image: alpine
     steps:
-      - checkout  # Ambil source code dari repo
+      - checkout  # Ambil source code dari repoo
       - run:
           name: Install hadolint
           command: |
