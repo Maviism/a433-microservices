@@ -1,0 +1,60 @@
+version: 2.1
+
+jobs:
+  # Lint Dockerfile menggunakan hadolint
+  lint-dockerfile:
+    docker:
+      - image: alpine
+    steps:
+      - checkout  # Ambil source code dari repo
+      - run:
+          name: Install hadolint
+          command: |
+            apk add --no-cache curl
+            curl -L https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64 -o /usr/local/bin/hadolint
+            chmod +x /usr/local/bin/hadolint
+      - run:
+          name: Run hadolint on Dockerfile
+          command: hadolint Dockerfile
+
+  # Jalanin unit test untuk aplikasi backend
+  test-app:
+    docker:
+      - image: cimg/go:1.19
+    steps:
+      - checkout  # Ambil source code dari repo
+      - run:
+          name: Run Go unit tests
+          command: |
+            go test -v -short --count=1 $(go list ./...)
+
+  # Build image dan push ke GHCR
+  build-app-karsajobs:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - setup_remote_docker  # Diperlukan untuk build Docker image di environment CircleCI
+      - run:
+          name: Build Docker image
+          command: |
+            docker build -t ghcr.io/${GHCR_USERNAME}/karsajobs:latest .
+      - run:
+          name: Login to GHCR
+          command: |
+            echo $GHCR_TOKEN | docker login ghcr.io -u $GHCR_USERNAME --password-stdin
+      - run:
+          name: Push Docker image to GHCR
+          command: |
+            docker push ghcr.io/${GHCR_USERNAME}/karsajobs:latest
+
+workflows:
+  version: 2
+  karsajobs_pipeline:
+    jobs:
+      - lint-dockerfile
+      - test-app
+      - build-app-karsajobs:
+          requires:
+            - lint-dockerfile
+            - test-app
